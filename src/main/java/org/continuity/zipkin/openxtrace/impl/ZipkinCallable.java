@@ -1,6 +1,5 @@
 package org.continuity.zipkin.openxtrace.impl;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -25,8 +24,6 @@ public abstract class ZipkinCallable extends ZipkingIdentifiable implements Call
 	private ZipkinSpan span;
 
 	private NestingCallable parent;
-
-	private final Collection<AdditionalInformation> additionalInformation = new ArrayList<>();
 
 	/**
 	 * {@inheritDoc} <br>
@@ -55,18 +52,20 @@ public abstract class ZipkinCallable extends ZipkingIdentifiable implements Call
 		return span;
 	}
 
-	protected void addAdditionalInformation(AdditionalInformation additionalInfo) {
-		additionalInformation.add(additionalInfo);
-	}
-
 	@Override
 	public Optional<Collection<AdditionalInformation>> getAdditionalInformation() {
-		return Optional.ofNullable(additionalInformation);
+		return Optional.ofNullable(span.extractSpecialTags().entrySet().stream().map(ZipkinTagInformation::fromEntry).collect(Collectors.toList()));
 	}
 
 	@Override
 	public <T extends AdditionalInformation> Optional<Collection<T>> getAdditionalInformation(Class<T> type) {
-		return Optional.ofNullable(additionalInformation.stream().filter(info -> type.isAssignableFrom(info.getClass())).map(type::cast).collect(Collectors.toList()));
+		Optional<Collection<AdditionalInformation>> additionalInfo = getAdditionalInformation();
+
+		if (additionalInfo.isPresent()) {
+			return Optional.ofNullable(additionalInfo.get().stream().filter(info -> type.isAssignableFrom(info.getClass())).map(type::cast).collect(Collectors.toList()));
+		} else {
+			return Optional.empty();
+		}
 	}
 
 	@Override
