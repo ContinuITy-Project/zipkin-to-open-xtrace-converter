@@ -1,5 +1,6 @@
 package org.continuity.zipkin.openxtrace.impl;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,11 +30,17 @@ public abstract class ZipkinNestingCallable extends ZipkinTimedCallable implemen
 	public ZipkinCallable fromZipkin(ZipkinSubTraceBundle input) {
 		super.fromZipkin(input);
 
-		Map<String, List<ZipkinSpan>> spansPerParent = input.getRemaining().stream().collect(Collectors.groupingBy(this::thisIdOrRest));
+		if (input.getRemaining() != null) {
+			Map<String, List<ZipkinSpan>> spansPerParent = input.getRemaining().stream().collect(Collectors.groupingBy(this::thisIdOrRest));
 
-		if (spansPerParent.get(getSpan().getId()) != null) {
-			this.callees = spansPerParent.get(getSpan().getId()).stream().map(child -> new ZipkinSubTraceBundle(child, spansPerParent.get(KEY_REMAINING)))
-					.map(ZipkinCallableFactory.INSTANCE::createForSubTrace).collect(Collectors.toList());
+			if (spansPerParent.get(getSpan().getId()) != null) {
+				this.callees = spansPerParent.get(getSpan().getId()).stream().map(child -> new ZipkinSubTraceBundle(child, spansPerParent.get(KEY_REMAINING)))
+						.map(ZipkinCallableFactory.INSTANCE::createForSubTrace).collect(Collectors.toList());
+			}
+		}
+
+		if (callees == null) {
+			callees = Collections.emptyList();
 		}
 
 		return this;

@@ -1,7 +1,13 @@
 package org.continuity.zipkin.openxtrace.conversion;
 
+import org.continuity.zipkin.openxtrace.data.ZipkinSpan;
 import org.continuity.zipkin.openxtrace.data.ZipkinSubTraceBundle;
 import org.continuity.zipkin.openxtrace.impl.ZipkinCallable;
+import org.continuity.zipkin.openxtrace.impl.ZipkinHttpRequestProcessing;
+import org.continuity.zipkin.openxtrace.impl.ZipkinRemoteInvocation;
+import org.continuity.zipkin.openxtrace.impl.ZipkinUseCaseInvocation;
+
+import zipkin2.Span.Kind;
 
 /**
  * Creates instances of {@link ZipkinCallable}.
@@ -28,20 +34,14 @@ public class ZipkinCallableFactory {
 	}
 
 	private ZipkinCallable createEmptyCallable(ZipkinSubTraceBundle subTrace) {
-		// TODO
+		ZipkinSpan root = subTrace.getRoot();
 
-		switch (subTrace.getRoot().getKind()) {
-		case CLIENT:
-			break;
-		case CONSUMER:
-			break;
-		case PRODUCER:
-			break;
-		case SERVER:
-			break;
-		default:
-			break;
-
+		if (root.getKind() == Kind.CLIENT) {
+			return new ZipkinRemoteInvocation();
+		} else if ((root.getKind() == Kind.SERVER) && (root.getTags().containsKey(ZipkinSpan.KEY_HTTP_URL) || root.getTags().containsKey(ZipkinSpan.KEY_HTTP_PATH))) {
+			return new ZipkinHttpRequestProcessing();
+		} else {
+			return new ZipkinUseCaseInvocation();
 		}
 	}
 

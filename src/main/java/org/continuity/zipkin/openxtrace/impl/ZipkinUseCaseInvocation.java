@@ -14,4 +14,9 @@ public class ZipkinUseCaseInvocation extends ZipkinNestingCallable implements Us
 		return getSpan().getName();
 	}
 
+	@Override
+	protected boolean isKnownTag(ZipkinTagInformation tag) {
+		return false;
+	}
+
 }

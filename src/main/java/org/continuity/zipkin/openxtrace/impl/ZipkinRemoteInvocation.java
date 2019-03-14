@@ -1,10 +1,8 @@
 package org.continuity.zipkin.openxtrace.impl;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import org.continuity.zipkin.openxtrace.data.ZipkinSpan;
 import org.continuity.zipkin.openxtrace.data.ZipkinSubTraceBundle;
 import org.spec.research.open.xtrace.api.core.Location;
 import org.spec.research.open.xtrace.api.core.SubTrace;
@@ -23,14 +21,11 @@ public class ZipkinRemoteInvocation extends ZipkinTimedCallable implements Remot
 	public ZipkinCallable fromZipkin(ZipkinSubTraceBundle input) {
 		super.fromZipkin(input);
 
-		makeChildrenToRoot(input.getRemaining());
-		this.targetSubTrace = new ZipkingSubTraceImpl().fromZipkin(input.getRemaining());
+		if (input.getRemaining() != null) {
+			this.targetSubTrace = new ZipkingSubTraceImpl().fromZipkin(input.getRemaining(), child -> Objects.equals(getSpan().getId(), child.getParentId())).withCaller(this);
+		}
 
 		return this;
-	}
-
-	private void makeChildrenToRoot(List<ZipkinSpan> spans) {
-		spans.stream().filter(child -> Objects.equals(getSpan().getId(), child.getParentId())).forEach(subRoot -> subRoot.setParentId(null));
 	}
 
 	@Override
@@ -62,6 +57,11 @@ public class ZipkinRemoteInvocation extends ZipkinTimedCallable implements Remot
 	@Override
 	public Optional<SubTrace> getTargetSubTrace() {
 		return Optional.ofNullable(targetSubTrace);
+	}
+
+	@Override
+	protected boolean isKnownTag(ZipkinTagInformation tag) {
+		return false;
 	}
 
 }

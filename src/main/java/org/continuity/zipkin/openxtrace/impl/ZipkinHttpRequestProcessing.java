@@ -5,8 +5,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 
+import org.continuity.zipkin.openxtrace.data.ZipkinSpan;
 import org.spec.research.open.xtrace.api.core.callables.HTTPMethod;
 import org.spec.research.open.xtrace.api.core.callables.HTTPRequestProcessing;
 
@@ -63,13 +65,26 @@ public class ZipkinHttpRequestProcessing extends ZipkinNestingCallable implement
 
 	@Override
 	public Optional<HTTPMethod> getRequestMethod() {
-		String method = getSpan().extractHttpMethod();
+		String methodName = getSpan().extractHttpMethod();
 
-		if (method != null) {
-			return Optional.ofNullable(HTTPMethod.valueOf(method));
-		} else {
-			return Optional.empty();
+		HTTPMethod method = null;
+
+		if (methodName != null) {
+			method = HTTPMethod.valueOf(methodName);
 		}
+
+		if (method == null) {
+			String upperCaseName = getSpan().getName().toUpperCase();
+
+			for (HTTPMethod m : HTTPMethod.values()) {
+				if (upperCaseName.contains(m.name())) {
+					method = m;
+					break;
+				}
+			}
+		}
+
+		return Optional.ofNullable(method);
 	}
 
 	@Override
@@ -85,6 +100,26 @@ public class ZipkinHttpRequestProcessing extends ZipkinNestingCallable implement
 	@Override
 	public String getUri() {
 		return getSpan().extractPath();
+	}
+
+	@Override
+	protected boolean isKnownTag(ZipkinTagInformation tag) {
+		switch (tag.getName()) {
+		case ZipkinSpan.KEY_HTTP_METHOD:
+			return Objects.equals(tag.getValue(), getRequestMethod().orElse(HTTPMethod.GET).toString());
+		case ZipkinSpan.KEY_BODY:
+			return Objects.equals(tag.getValue(), getRequestBody().orElse(null));
+		case ZipkinSpan.KEY_HTTP_STATUS_CODE:
+			return Objects.equals(tag.getValue(), getResponseCode().orElse(-1L).toString());
+		case ZipkinSpan.KEY_HTTP_PATH:
+		case ZipkinSpan.KEY_HTTP_URL:
+			return Objects.equals(tag.getValue(), getUri());
+		case ZipkinSpan.KEY_COOKIE:
+			return true;
+		case ZipkinSpan.KEY_HTTP_HOST:
+		default:
+			return false;
+		}
 	}
 
 }

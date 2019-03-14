@@ -4,15 +4,12 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,14 +24,13 @@ public class ZipkinSpan {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ZipkinSpan.class);
 
-	private static final String KEY_HTTP_URL = "http.url";
-	private static final String KEY_HTTP_PATH = "http.path";
-	private static final String KEY_HTTP_METHOD = "http.method";
-	private static final String KEY_HTTP_STATUS_CODE = "http.status_code";
-	private static final String KEY_BODY = "body";
-	private static final String KEY_COOKIE = "cookie";
-
-	private static final Collection<String> KNOWN_TAGS = Arrays.asList(KEY_HTTP_URL, KEY_HTTP_PATH, KEY_HTTP_METHOD, KEY_HTTP_STATUS_CODE, KEY_BODY, KEY_COOKIE);
+	public static final String KEY_HTTP_URL = "http.url";
+	public static final String KEY_HTTP_HOST = "http.host";
+	public static final String KEY_HTTP_PATH = "http.path";
+	public static final String KEY_HTTP_METHOD = "http.method";
+	public static final String KEY_HTTP_STATUS_CODE = "http.status_code";
+	public static final String KEY_BODY = "body";
+	public static final String KEY_COOKIE = "cookie";
 
 	private String traceId;
 	private String parentId;
@@ -158,6 +154,10 @@ public class ZipkinSpan {
 		String host = getLocalEndpoint().getServiceName();
 
 		if (host == null) {
+			host = getTags().get(KEY_HTTP_HOST);
+		}
+
+		if (host == null) {
 			URI url;
 			host = (url = extractUri()) == null ? null : url.getHost();
 		}
@@ -240,15 +240,6 @@ public class ZipkinSpan {
 		} else {
 			return Collections.emptyMap();
 		}
-	}
-
-	@JsonIgnore
-	public Map<String, String> extractSpecialTags() {
-		return getTags().keySet().stream().filter(not(KNOWN_TAGS::contains)).collect(Collectors.toMap(x -> x, tags::get));
-	}
-
-	private <T> Predicate<T> not(Predicate<T> predicate) {
-		return predicate.negate();
 	}
 
 }

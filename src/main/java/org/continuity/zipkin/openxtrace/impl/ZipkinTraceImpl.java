@@ -11,12 +11,15 @@ import org.spec.research.open.xtrace.api.core.TreeIterator;
 import org.spec.research.open.xtrace.api.core.callables.Callable;
 import org.spec.research.open.xtrace.api.utils.SubTraceIterator;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 /**
  *
  * @author Henning Schulz
  *
  */
-public class ZipkinTraceImpl extends ZipkingIdentifiable implements Trace, ZipkinConvertible<List<ZipkinSpan>, ZipkinTraceImpl> {
+@JsonSerialize(using = ZipkinTraceSerializer.class)
+public class ZipkinTraceImpl extends ZipkingIdentifiable implements Trace {
 
 	public static final double MICROS_TO_MILLIS_FACTOR = 0.001;
 
@@ -26,7 +29,6 @@ public class ZipkinTraceImpl extends ZipkingIdentifiable implements Trace, Zipki
 
 	private long traceId;
 
-	@Override
 	public ZipkinTraceImpl fromZipkin(List<ZipkinSpan> input) {
 		Optional<ZipkinSpan> nonNullSpan = input.stream().filter(s -> s.getTraceId() != null).findFirst();
 
@@ -35,7 +37,7 @@ public class ZipkinTraceImpl extends ZipkingIdentifiable implements Trace, Zipki
 			this.traceId = new BigInteger(nonNullSpan.get().getTraceId(), 16).longValue();
 		}
 
-		this.root = new ZipkingSubTraceImpl().withContainingTrace(this).fromZipkin(input);
+		this.root = new ZipkingSubTraceImpl().withContainingTrace(this).fromZipkin(input, span -> span.getParentId() == null);
 
 		return this;
 	}

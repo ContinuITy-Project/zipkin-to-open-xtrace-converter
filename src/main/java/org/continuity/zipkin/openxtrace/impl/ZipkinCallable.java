@@ -3,6 +3,7 @@ package org.continuity.zipkin.openxtrace.impl;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.continuity.zipkin.openxtrace.data.ZipkinSpan;
@@ -17,7 +18,7 @@ import org.spec.research.open.xtrace.api.core.callables.NestingCallable;
  * @author Henning Schulz
  *
  */
-public abstract class ZipkinCallable extends ZipkingIdentifiable implements Callable, ZipkinConvertible<ZipkinSubTraceBundle, ZipkinCallable> {
+public abstract class ZipkinCallable extends ZipkingIdentifiable implements Callable {
 
 	private ZipkingSubTraceImpl containingSubTrace;
 
@@ -26,12 +27,9 @@ public abstract class ZipkinCallable extends ZipkingIdentifiable implements Call
 	private NestingCallable parent;
 
 	/**
-	 * {@inheritDoc} <br>
-	 *
 	 * <i>Implementations should override this method and call {@code super.fromZipkin(input)}
 	 * first!</i>
 	 */
-	@Override
 	public ZipkinCallable fromZipkin(ZipkinSubTraceBundle input) {
 		this.span = input.getRoot();
 		setIdentifier(span.getId());
@@ -54,7 +52,7 @@ public abstract class ZipkinCallable extends ZipkingIdentifiable implements Call
 
 	@Override
 	public Optional<Collection<AdditionalInformation>> getAdditionalInformation() {
-		return Optional.ofNullable(span.extractSpecialTags().entrySet().stream().map(ZipkinTagInformation::fromEntry).collect(Collectors.toList()));
+		return Optional.ofNullable(span.getTags().entrySet().stream().map(ZipkinTagInformation::fromEntry).filter(not(this::isKnownTag)).collect(Collectors.toList()));
 	}
 
 	@Override
@@ -96,6 +94,12 @@ public abstract class ZipkinCallable extends ZipkingIdentifiable implements Call
 	@Override
 	public long getTimestamp() {
 		return Math.round(span.getTimestamp() * ZipkinTraceImpl.MICROS_TO_MILLIS_FACTOR);
+	}
+
+	protected abstract boolean isKnownTag(ZipkinTagInformation tag);
+
+	private <T> Predicate<T> not(Predicate<T> predicate) {
+		return predicate.negate();
 	}
 
 }

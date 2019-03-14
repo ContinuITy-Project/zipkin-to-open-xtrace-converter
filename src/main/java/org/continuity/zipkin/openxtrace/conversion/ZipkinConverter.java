@@ -12,13 +12,14 @@ import java.util.stream.Collectors;
 
 import org.continuity.zipkin.openxtrace.data.ZipkinSpan;
 import org.continuity.zipkin.openxtrace.impl.ZipkinTraceImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spec.research.open.xtrace.api.core.Trace;
 
+/**
+ *
+ * @author Henning Schulz
+ *
+ */
 public class ZipkinConverter {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(ZipkinConverter.class);
 
 	private final DuplicatesResolver duplicatesResolver = new DuplicatesResolver();
 
@@ -26,6 +27,9 @@ public class ZipkinConverter {
 		List<ZipkinSpan> resolved = trace.stream()
 				.collect(collectingAndThen(groupingBy(ZipkinSpan::getId),
 						map -> map.entrySet().stream().map(Entry::getValue).map(duplicatesResolver::resolve).flatMap(List::stream).collect(toList())));
+
+		// TODO: remove
+		convertRecursivley(resolved.stream().filter(span -> span.getParentId() == null).collect(Collectors.toList()), resolved, "");
 
 		return new ZipkinTraceImpl().fromZipkin(resolved);
 	}
