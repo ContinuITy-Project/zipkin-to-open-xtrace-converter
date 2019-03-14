@@ -1,0 +1,8 @@
+server:
+  port: ${port:8345}
+spring:
+  application:
+    name: zipkin-to-open-xtrace-converter
+zipkin:
+  base-url: http://zipkin:9411
+  limit-per-request: 1000
