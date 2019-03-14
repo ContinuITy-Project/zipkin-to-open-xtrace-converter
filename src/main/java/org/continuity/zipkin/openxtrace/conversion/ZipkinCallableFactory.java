@@ -4,8 +4,7 @@ import org.continuity.zipkin.openxtrace.data.ZipkinSubTraceBundle;
 import org.continuity.zipkin.openxtrace.impl.ZipkinCallable;
 
 /**
- * Creates instances of {@link ZipkinCallable} which can be filled by calling
- * {@link ZipkinCallable#fromZipkin(org.continuity.zipkin.openxtrace.data.ZipkinSubTraceBundle)}.
+ * Creates instances of {@link ZipkinCallable}.
  *
  * @author Henning Schulz
  *
@@ -17,7 +16,18 @@ public class ZipkinCallableFactory {
 	private ZipkinCallableFactory() {
 	}
 
+	/**
+	 * Creates a callable.
+	 *
+	 * @param subTrace
+	 *            The sub trace bundle for which the callable is to be created.
+	 * @return The created callable.
+	 */
 	public ZipkinCallable createForSubTrace(ZipkinSubTraceBundle subTrace) {
+		return createEmptyCallable(subTrace).fromZipkin(subTrace);
+	}
+
+	private ZipkinCallable createEmptyCallable(ZipkinSubTraceBundle subTrace) {
 		// TODO
 
 		switch (subTrace.getRoot().getKind()) {

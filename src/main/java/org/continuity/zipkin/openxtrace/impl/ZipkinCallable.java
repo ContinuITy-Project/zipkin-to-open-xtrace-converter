@@ -37,6 +37,7 @@ public abstract class ZipkinCallable extends ZipkingIdentifiable implements Call
 	@Override
 	public ZipkinCallable fromZipkin(ZipkinSubTraceBundle input) {
 		this.span = input.getRoot();
+		setIdentifier(span.getId());
 		return this;
 	}
 

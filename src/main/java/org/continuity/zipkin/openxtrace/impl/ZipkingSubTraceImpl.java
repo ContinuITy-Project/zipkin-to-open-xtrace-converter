@@ -1,7 +1,5 @@
 package org.continuity.zipkin.openxtrace.impl;
 
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -11,8 +9,6 @@ import java.util.stream.Collectors;
 import org.continuity.zipkin.openxtrace.conversion.ZipkinCallableFactory;
 import org.continuity.zipkin.openxtrace.data.ZipkinSpan;
 import org.continuity.zipkin.openxtrace.data.ZipkinSubTraceBundle;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spec.research.open.xtrace.api.core.Location;
 import org.spec.research.open.xtrace.api.core.SubTrace;
 import org.spec.research.open.xtrace.api.core.Trace;
@@ -27,10 +23,6 @@ import org.spec.research.open.xtrace.api.utils.CallableIterator;
  *
  */
 public class ZipkingSubTraceImpl extends ZipkingIdentifiable implements SubTrace, Location, ZipkinConvertible<List<ZipkinSpan>, ZipkingSubTraceImpl> {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(ZipkingSubTraceImpl.class);
-
-	private static final String KEY_HTTP_URL = "http.url";
 
 	private static final String KEY_ROOT = "ROOT";
 	private static final String KEY_NON_ROOT = "NON_ROOT";
@@ -63,8 +55,7 @@ public class ZipkingSubTraceImpl extends ZipkingIdentifiable implements SubTrace
 
 		this.rootSpan = root;
 		this.size = (remaining == null ? 0 : remaining.size()) + 1;
-		this.root = ZipkinCallableFactory.INSTANCE.createForSubTrace(subTrace);
-		this.root.withContainingSubTrace(this).fromZipkin(subTrace);
+		this.root = ZipkinCallableFactory.INSTANCE.createForSubTrace(subTrace).withContainingSubTrace(this);
 	}
 
 	public ZipkingSubTraceImpl withContainingTrace(Trace containingTrace) {
@@ -106,22 +97,7 @@ public class ZipkingSubTraceImpl extends ZipkingIdentifiable implements SubTrace
 
 	@Override
 	public String getHost() {
-		String host = Optional.ofNullable(rootSpan.getLocalEndpoint().getServiceName()).orElse(extractUrl().getHost());
-		return Optional.ofNullable(host).orElse(rootSpan.getLocalEndpoint().getIpv4());
-	}
-
-	private URL extractUrl() {
-		String url = rootSpan.getTags().get(KEY_HTTP_URL);
-
-		if (url != null) {
-			try {
-				return new URL(url);
-			} catch (MalformedURLException e) {
-				LOGGER.error("Cannot parse URL!", e);
-			}
-		}
-
-		return null;
+		return rootSpan.extractHost();
 	}
 
 	@Override
@@ -131,13 +107,7 @@ public class ZipkingSubTraceImpl extends ZipkingIdentifiable implements SubTrace
 
 	@Override
 	public int getPort() {
-		if (rootSpan.getLocalEndpoint().getPort() > 0) {
-			return rootSpan.getLocalEndpoint().getPort();
-		} else if (extractUrl() != null) {
-			return extractUrl().getPort();
-		} else {
-			return -1;
-		}
+		return rootSpan.extractPort();
 	}
 
 	@Override
