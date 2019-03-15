@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 import org.spec.research.open.xtrace.api.core.Trace;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
@@ -53,6 +55,12 @@ public class OpenXtraceController {
 
 	@Value("${zipkin.limit-per-request}")
 	private int limitPerRequest;
+
+	@EventListener
+	public void onStartup(ApplicationReadyEvent event) {
+		LOGGER.info("Using the follwing Zipkin base URL: {}", zipkinBaseUrl);
+		LOGGER.info("The limit of traces per request is {}", limitPerRequest);
+	}
 
 	@RequestMapping(path = "/get", method = RequestMethod.GET)
 	public List<Trace> getOpenXtraces(Date fromDate, Date toDate) throws JsonParseException, JsonMappingException, IOException {
