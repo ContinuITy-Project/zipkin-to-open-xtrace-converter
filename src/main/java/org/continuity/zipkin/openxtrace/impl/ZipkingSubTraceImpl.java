@@ -1,16 +1,20 @@
 package org.continuity.zipkin.openxtrace.impl;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.continuity.zipkin.openxtrace.conversion.ZipkinCallableFactory;
 import org.continuity.zipkin.openxtrace.data.ZipkinSpan;
 import org.continuity.zipkin.openxtrace.data.ZipkinSubTraceBundle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spec.research.open.xtrace.api.core.Location;
 import org.spec.research.open.xtrace.api.core.SubTrace;
 import org.spec.research.open.xtrace.api.core.Trace;
@@ -26,6 +30,8 @@ import org.spec.research.open.xtrace.api.utils.CallableIterator;
  */
 public class ZipkingSubTraceImpl extends ZipkingIdentifiable implements SubTrace, Location {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(ZipkingSubTraceImpl.class);
+
 	private static final String KEY_ROOT = "ROOT";
 	private static final String KEY_NON_ROOT = "NON_ROOT";
 
@@ -39,14 +45,45 @@ public class ZipkingSubTraceImpl extends ZipkingIdentifiable implements SubTrace
 
 	public ZipkingSubTraceImpl fromZipkin(List<ZipkinSpan> input, Predicate<ZipkinSpan> rootCriterion) {
 		Map<String, List<ZipkinSpan>> spansPerType = input.stream().collect(Collectors.groupingBy(span -> rootCriterion.test(span) ? KEY_ROOT : KEY_NON_ROOT));
+		ZipkinSpan rootSpan = null;
+		List<ZipkinSpan> remaining = null;
 
-		if (spansPerType.get(KEY_ROOT).size() != 1) {
-			throw new IllegalArgumentException(
-					"Cannot create SubTrace from " + spansPerType.get(KEY_ROOT).size() + " root spans with IDs "
-							+ spansPerType.get(KEY_ROOT).stream().map(ZipkinSpan::getId).collect(Collectors.toList()));
+		if (!spansPerType.containsKey(KEY_ROOT)) {
+			LOGGER.warn("There is no appropriate root span in {}! Using a span with non-existing parent ID and the widest time range.",
+					input.stream().map(ZipkinSpan::getId).collect(Collectors.toList()));
+
+			Set<String> ids = input.stream().map(ZipkinSpan::getId).collect(Collectors.toSet());
+			spansPerType = input.stream().collect(Collectors.groupingBy(span -> !ids.contains(span.getParentId()) ? KEY_ROOT : KEY_NON_ROOT));
+
+			if (!spansPerType.containsKey(KEY_ROOT)) {
+				LOGGER.error("Cannot create the SubTrace! There is no span with non-existing parent ID, either!");
+			} else {
+				List<ZipkinSpan> potentialRootSpans = spansPerType.get(KEY_ROOT);
+				Collections.sort(potentialRootSpans, (a, b) -> Math.round((Math.signum(Long.compare(a.getTimestamp(), b.getTimestamp())) * 2) + Math.signum(Long.compare(b.getDuration(), a.getDuration()))));
+
+				rootSpan = potentialRootSpans.get(0);
+
+				remaining = spansPerType.get(KEY_NON_ROOT);
+
+				if (remaining == null) {
+					remaining = new ArrayList<>();
+				}
+
+				remaining.addAll(potentialRootSpans.subList(1, potentialRootSpans.size()));
+
+				LOGGER.info("The selected root is {} with parent ID {}, timestamp {}, and duration {}.", rootSpan.getId(), rootSpan.getParentId(), rootSpan.getTimestamp(), rootSpan.getDuration());
+			}
+		} else if (spansPerType.get(KEY_ROOT).size() != 1) {
+			LOGGER.error("Cannot create SubTrace from {} root spans with IDs {}. Ignoring the sub spans.", spansPerType.get(KEY_ROOT).size(),
+					spansPerType.get(KEY_ROOT).stream().map(ZipkinSpan::getId).collect(Collectors.toList()));
+		} else {
+			rootSpan = spansPerType.get(KEY_ROOT).get(0);
+			remaining = spansPerType.get(KEY_NON_ROOT);
 		}
 
-		setupFromRootSpan(spansPerType.get(KEY_ROOT).get(0), spansPerType.get(KEY_NON_ROOT));
+		if (rootSpan != null) {
+			setupFromRootSpan(rootSpan, remaining);
+		}
 
 		return this;
 	}
