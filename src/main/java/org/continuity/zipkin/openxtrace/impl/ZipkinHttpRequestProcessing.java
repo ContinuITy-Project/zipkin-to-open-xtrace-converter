@@ -29,7 +29,11 @@ public class ZipkinHttpRequestProcessing extends ZipkinNestingCallable implement
 	@Override
 	public Optional<Map<String, String>> getHTTPHeaders() {
 		Map<String, String> headers = new HashMap<>();
-		headers.put(KEY_COOKIE, getSpan().extractCookies());
+
+		String cookie = getSpan().extractCookies();
+		if (cookie != null) {
+			headers.put(KEY_COOKIE, cookie);
+		}
 
 		return Optional.ofNullable(headers);
 	}
