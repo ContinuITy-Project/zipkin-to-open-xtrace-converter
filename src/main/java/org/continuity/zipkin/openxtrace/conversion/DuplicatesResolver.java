@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 import org.continuity.zipkin.openxtrace.data.ZipkinSpan;
@@ -103,11 +104,35 @@ public class DuplicatesResolver {
 		client.setId(newId);
 		server.setParentId(newId);
 
+		if ((server.getName() != null) && server.getName().contains("/")) {
+			addHttpInfoToServer(client, server);
+		}
+
 		LOGGER.debug("Orig ID: {}, new ID: {}", server.getId(), newId);
 	}
 
 	private boolean isNotPointless(ZipkinSpan span) {
 		return (span.getName() != null) || (span.getLocalEndpoint().getServiceName() != null) || (span.getTags().get("http.url") != null);
+	}
+
+	/**
+	 * We encountered that in some Zipkin traces, there is HTTP information missing in the server
+	 * spans. This method adds this information from the calling client span.
+	 *
+	 * @param client
+	 * @param server
+	 */
+	private void addHttpInfoToServer(ZipkinSpan client, ZipkinSpan server) {
+		for (Entry<String, String> entry : client.getTags().entrySet()) {
+			if (entry.getKey().startsWith("http")) {
+				String contained = server.getTags().putIfAbsent(entry.getKey(), entry.getValue());
+
+				if (contained == null) {
+					LOGGER.info("Added tag '{}: {}' from client span to span {}.", entry.getKey(), entry.getValue(), server.getId());
+				}
+			}
+		}
+
 	}
 
 }
